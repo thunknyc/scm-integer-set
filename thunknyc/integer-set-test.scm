@@ -1,0 +1,10 @@
+(import (scheme red) (thunknyc integer-set) (chibi test))
+
+(test-begin "(thunknyc integer-set")
+(let ((s1 (integer-set 1 2 3 5))
+      (s2 (integer-set 4 6)))
+  (test "Non-membership" #f (integer-set-contains? s1 42))
+  (test "Membership" #t (integer-set-contains? s1 3))
+  (test "Disjointness" #t (integer-set-disjoint? s1 s2)))
+(test-end)
+(test-exit)
