@@ -28,6 +28,9 @@
   (let* ((base (min-element elements))
 	 (n (element-range elements))
 	 (bitvector (make-bv n 0)))
+    ;; TODO We should look for clusters of entries that represent
+    ;; non-sparse runs of elements, for some definition of sparseness,
+    ;; and create containing zero or more subsets.
     (for-each (lambda (el)
 		(bv-set! bitvector (- el base) 1))
 	      elements)
