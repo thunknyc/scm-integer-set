@@ -24,17 +24,50 @@
 (define bv-set! vector-set!)
 (define bv-fold vector-fold)
 
-(define (integer-set . elements)
+(define (flat-integer-set . elements)
   (let* ((base (min-element elements))
 	 (n (element-range elements))
 	 (bitvector (make-bv n 0)))
-    ;; TODO We should look for clusters of entries that represent
-    ;; non-sparse runs of elements, for some definition of sparseness,
-    ;; and create containing zero or more subsets.
     (for-each (lambda (el)
 		(bv-set! bitvector (- el base) 1))
 	      elements)
     (construct-integer-set bitvector base '())))
+
+(define (gap-too-big? el prev range n)
+  (let ((gap (- el prev))
+	(reciprocal-density (/ range n)))
+    (and (> gap 256)
+	 (> gap (* reciprocal-density 2)))))
+
+(define (partition-fold els n range)
+  (fold (lambda (el accum)
+	  (let ((current (car accum)) (subsets (cdr accum)))
+	    (cond ((null? current)
+		   (cons (cons el '()) subsets))
+		  ((gap-too-big? el (car current) range n)
+		   (cons (cons el '())
+			 (cons (apply flat-integer-set current)
+			       subsets)))
+		  (else (cons (cons el current) subsets)))))
+	'(() . ()) (list-sort < els)))
+
+(define (partition els)
+  (let* ((accum (partition-fold els (length els) (element-range els)))
+	 (current (car accum))
+	 (subsets (cdr accum)))
+    (if (null? current)
+	subsets
+	(cons (apply flat-integer-set current) subsets))))
+
+(define (integer-set . elements)
+  (if (sparse? elements)
+      (let ((subsets (partition elements)))
+	(cond ((null? subsets) (flat-integer-set))
+	      (else (let ((set (car subsets))
+			  (subsets (cdr subsets)))
+		      (set-integer-set-subsets! set subsets)
+		      set))))
+      (apply flat-integer-set elements)))
 
 (define (integer-set-contains? set element)
   (let* ((bitvector (integer-set-bitvector set))
@@ -79,3 +112,16 @@
       (lambda (el) (if (integer-set-contains? s1 el) (k #f)))
       s2)
      #t)))
+
+;; Derived procedures
+
+(define (integer-set->list set)
+  (integer-set-fold cons '() set))
+
+(define (integer-set-member set element default)
+  (if (integer-set-contains? set element) element default))
+
+(define (integer-set-adjoin set element)
+  (apply integer-set (cons element (integer-set->list set))))
+
+(define integer-set-adjoin! integer-set-adjoin)
